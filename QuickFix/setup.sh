@@ -6,6 +6,12 @@
 # Creates and populates the Python virtual environment if needed.
 # Called automatically by run.sh — can also be run standalone.
 #
+# Usage:
+#   ./setup.sh [--full]   - full setup
+#   ./setup.sh --basic    - check environment (only)
+#   ./setup.sh --plugins  - check plugins (only)
+#   ./setup.sh --help     - shows this help
+#
 # Environment overrides (export before calling):
 #   QUICKFIX_VENV=/custom/path   Override default venv location
 #
@@ -72,6 +78,10 @@ _warn() { echo -e "  ${CLR_WARN}[WARN]${CLR_RESET} $*"; }
 _fail() {
     echo -e "  ${CLR_FAIL}[FAIL]${CLR_RESET} $*" >&2
     FAILED=1
+}
+_error() {
+    echo -e "  ${CLR_FAIL}[ERROR]${CLR_RESET} $*" >&2
+    exit 1
 }
 _info() { echo -e "${CLR_INFO}[${APP_NAME}]${CLR_RESET} $*"; }
 _section() {
@@ -277,7 +287,7 @@ _check_plugins() {
         fi
 
         local binaries
-        binaries=$(python core/loader.py --validate "${config_file}")
+        binaries=$(python "${SCRIPT_DIR}/core/loader.py" --validate "${config_file}")
 
         for binary in ${binaries}; do
             if command -v "${binary}" &>/dev/null; then
@@ -335,7 +345,6 @@ _check_essential_files() {
     for path in "${paths[@]}"; do
         if [[ ! -f "${SCRIPT_DIR}/${path}" ]]; then
             _fail "Not Found: ${path}"
-            exit 1
         else
             _pass "Exists:  ${path}"
         fi
@@ -372,15 +381,30 @@ _write_log() {
 }
 
 # -----------------------------------------------------------------------------
-# Main
+# Help
 # -----------------------------------------------------------------------------
-main() {
-    _setup_colors
+_show_help() {
+    cat <<EOF
 
-    _info "Checking environment..."
+${APP_NAME} — File manipulation through sandboxed plugins
 
-    _check_not_root # Aborts immediately if root — non-negotiable
-    _check_os
+Usage:
+  ./setup.sh [--full]   - full setup
+  ./setup.sh --basic    - check environment (only)
+  ./setup.sh --plugins  - check plugins (only)
+  ./setup.sh --help     - shows this help
+
+Environment overrides (export before calling):
+  QUICKFIX_VENV=/custom/path   Override default venv location
+
+EOF
+}
+
+# -----------------------------------------------------------------------------
+# Basic Check
+# -----------------------------------------------------------------------------
+_check_basic() {
+    _check_os            # Application only for Linux
     _check_system_python # System python3 used only to bootstrap the venv
     _setup_venv          # Creates venv + activates for remaining checks
     _check_pyside6       # Installed inside venv
@@ -388,8 +412,51 @@ main() {
     _check_sandbox
     _check_python_stdlib
     _check_essential_files # Important for the application to function
-    _check_plugins
     _check_directories
+}
+
+# -----------------------------------------------------------------------------
+# Main
+# -----------------------------------------------------------------------------
+main() {
+    _setup_colors
+
+    local mode="full"
+    _LOG_MODE="full"
+
+    case "${1:-}" in
+    --full)
+        mode="full"
+        _LOG_MODE="full"
+        ;;
+    --basic)
+        mode="basic"
+        _LOG_MODE="basic"
+        ;;
+    --plugins)
+        mode="plugins"
+        _LOG_MODE="plugins"
+        ;;
+    --help)
+        _show_help
+        exit 0
+        ;;
+    "") mode="full" ;;
+    *) _error "Unknown option: '${1}'. Use --help for usage." ;;
+    esac
+
+    _info "Checking permissions..."
+    _check_not_root # Aborts immediately if root — non-negotiable
+
+    if [[ "${mode}" == "basic" || "${mode}" == "full" ]]; then
+        _info "Checking environment..."
+        _check_basic
+    fi
+
+    if [[ "${mode}" == "plugins" || "${mode}" == "full" ]]; then
+        _info "Checking plugins..."
+        _check_plugins
+    fi
 
     echo
     _write_log

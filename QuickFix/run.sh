@@ -5,6 +5,7 @@
 # Usage:
 #   ./run.sh           - launches GUI (default)
 #   ./run.sh --cli     - launches CLI
+#   ./run.sh --test    - launches Tests
 #   ./run.sh --help    - shows this help
 #
 # Environment overrides (export before calling):
@@ -24,6 +25,7 @@ readonly SETUP_SCRIPT="${SCRIPT_DIR}/setup.sh"
 readonly CORE_DIR="${SCRIPT_DIR}/core"
 readonly GUI_DIR="${SCRIPT_DIR}/gui"
 readonly CLI_DIR="${SCRIPT_DIR}/cli"
+readonly TESTS_DIR="${SCRIPT_DIR}/tests"
 
 # Venv location — must match the value used in setup.sh.
 # Can be overridden via environment variable before calling.
@@ -53,9 +55,12 @@ _setup_colors() {
 # -----------------------------------------------------------------------------
 # Helpers
 # -----------------------------------------------------------------------------
-_info()    { echo -e "${CLR_INFO}[${APP_NAME}]${CLR_RESET} $*"; }
-_warn()    { echo -e "  ${CLR_WARN}[WARN]${CLR_RESET} $*" >&2; }
-_error()   { echo -e "  ${CLR_FAIL}[ERROR]${CLR_RESET} $*" >&2; exit 1; }
+_info() { echo -e "${CLR_INFO}[${APP_NAME}]${CLR_RESET} $*"; }
+_warn() { echo -e "  ${CLR_WARN}[WARN]${CLR_RESET} $*" >&2; }
+_error() {
+    echo -e "  ${CLR_FAIL}[ERROR]${CLR_RESET} $*" >&2
+    exit 1
+}
 
 # -----------------------------------------------------------------------------
 # Guard: refuse to run as root
@@ -142,6 +147,53 @@ _launch_cli() {
 }
 
 # -----------------------------------------------------------------------------
+# Launch Tests
+# -----------------------------------------------------------------------------
+_launch_tests() {
+    _info "Launching Tests..."
+
+    if [[ ! -d "${TESTS_DIR}" ]]; then
+        _error "Tests directory not found: ${TESTS_DIR}"
+    fi
+
+    # Tests use only dummy_plugin (fixtures/) — never real plugins/
+    # No sandbox engine required — dummy_plugin runs with unsafe_override
+    local tests=(
+        "test_loader.py"
+        "test_verifier.py"
+        "test_session.py"
+        "test_sandbox.py"
+        "test_controller.py"
+    )
+
+    local passed=0
+    local failed=0
+
+    for py_test in "${tests[@]}"; do
+        local test_path="${TESTS_DIR}/${py_test}"
+        if [[ ! -f "${test_path}" ]]; then
+            _warn "Test file not found, skipping: ${py_test}"
+            continue
+        fi
+
+        _info "Running: ${py_test}"
+        if python -m pytest "${test_path}" -v; then
+            ((passed++)) || true
+        else
+            ((failed++)) || true
+        fi
+    done
+
+    echo
+    if ((failed > 0)); then
+        _info "Tests: ${CLR_OK}${passed} passed${CLR_RESET}, ${CLR_FAIL}${failed} failed${CLR_RESET}"
+        exit 1
+    else
+        _info "Tests: ${CLR_OK}${passed} passed${CLR_RESET}, 0 failed"
+    fi
+}
+
+# -----------------------------------------------------------------------------
 # Help
 # -----------------------------------------------------------------------------
 _show_help() {
@@ -152,6 +204,7 @@ ${APP_NAME} — File manipulation through sandboxed plugins
 Usage:
   ./run.sh           Launch GUI (default)
   ./run.sh --cli     Launch CLI
+  ./run.sh --test    Launches Tests
   ./run.sh --help    Show this help
 
 Environment:
@@ -175,20 +228,35 @@ main() {
     local mode="gui"
 
     case "${1:-}" in
-        --cli)  mode="cli"                ;;
-        --help) _show_help; exit 0        ;;
-        "")     mode="gui"                ;;
-        *)      _error "Unknown option: '${1}'. Use --help for usage." ;;
+    --cli) mode="cli" ;;
+    --test) mode="test" ;;
+    --help)
+        _show_help
+        exit 0
+        ;;
+    "") mode="gui" ;;
+    *) _error "Unknown option: '${1}'. Use --help for usage." ;;
     esac
 
-    _check_not_root
-    _run_setup
+    _info "Checking permissions..."
+    _check_not_root # Aborts immediately if root — non-negotiable
+
+    if [[ "${mode}" == "test" ]]; then
+        # Tests only need basic env — skip plugin checks (plugins may not be ready)
+        _info "Checking environment..."
+        bash "${SETUP_SCRIPT}" --basic || _error "Basic setup failed. Aborting."
+        _activate_venv
+        _launch_tests
+        return
+    fi
+
+    bash "${SETUP_SCRIPT}" --full || _error "Setup failed. Aborting."
     _activate_venv
     _check_core
 
     case "${mode}" in
-        gui) _launch_gui ;;
-        cli) _launch_cli "${@}" ;;
+    gui) _launch_gui ;;
+    cli) _launch_cli "${@}" ;;
     esac
 }
 
