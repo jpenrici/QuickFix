@@ -25,11 +25,14 @@ from core.loader import (
 
 # -----------------------------------------------------------------------------
 # Fixtures paths
+#
+# All tests use FIXTURES_DIR / dummy_plugin exclusively.
+# The real plugins/ directory is out of scope here — each plugin is
+# responsible for its own tests under plugins/<name>/tests/run_tests.sh
 # -----------------------------------------------------------------------------
 
 FIXTURES_DIR  = Path(__file__).parent / "fixtures"
 DUMMY_PLUGIN  = FIXTURES_DIR / "dummy_plugin"
-PLUGINS_DIR   = Path(__file__).parent.parent / "plugins"
 
 
 def _load_valid() -> PluginConfig:
@@ -83,12 +86,6 @@ class TestValidPlugin:
     def test_discover_nonexistent_dir(self, tmp_path):
         loader = PluginLoader(plugins_dir=tmp_path / "no_such_dir")
         assert loader.discover() == []
-
-    def test_real_plugin_is_valid(self):
-        """reverse_text_phrases must pass validation."""
-        loader = PluginLoader(plugins_dir=PLUGINS_DIR)
-        config = loader.load("reverse_text_phrases")
-        assert config.plugin.name == "reverse_text_phrases"
 
 
 # =============================================================================

@@ -316,6 +316,33 @@ _check_directories() {
 }
 
 # -----------------------------------------------------------------------------
+# Essential files
+# -----------------------------------------------------------------------------
+_check_essential_files() {
+    _section "Essential files"
+
+    local paths=(
+        "cli/cli.py"
+        "core/controller.py"
+        "core/loader.py"
+        "core/sandbox.py"
+        "core/session.py"
+        "core/verifier.py"
+        "gui/messenger.py"
+        "gui/window.py"
+        "gui/worker.py")
+
+    for path in "${paths[@]}"; do
+        if [[ ! -f "${SCRIPT_DIR}/${path}" ]]; then
+            _fail "Not Found: ${path}"
+            exit 1
+        else
+            _pass "Exists:  ${path}"
+        fi
+    done
+}
+
+# -----------------------------------------------------------------------------
 # Write venv ready marker (only on full success)
 # -----------------------------------------------------------------------------
 _write_venv_marker() {
@@ -360,6 +387,7 @@ main() {
     _check_pytest        # Installed inside venv
     _check_sandbox
     _check_python_stdlib
+    _check_essential_files # Important for the application to function
     _check_plugins
     _check_directories
 
