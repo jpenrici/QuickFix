@@ -293,3 +293,140 @@ class TestStructuralErrors:
         loader = PluginLoader(plugins_dir=tmp_path)
         with pytest.raises(PluginError):
             loader.load("dummy_plugin")
+
+
+# =============================================================================
+# Fixture files — config_valid.json, config_missing_field.json,
+#                 config_wildcard_mime.json
+#
+# These are standalone JSON files in tests/fixtures/ used to document
+# and test specific validation scenarios without constructing dicts in code.
+# Each fixture is loaded directly and injected into a temporary plugin dir,
+# making it obvious from the file name what scenario is being tested.
+# =============================================================================
+
+# Paths to the three fixture files
+CONFIG_VALID         = FIXTURES_DIR / "config_valid.json"
+CONFIG_MISSING_FIELD = FIXTURES_DIR / "config_missing_field.json"
+CONFIG_WILDCARD_MIME = FIXTURES_DIR / "config_wildcard_mime.json"
+
+
+class TestFixtureFiles:
+    """
+    Tests that use the three standalone fixture JSON files directly.
+
+    Purpose of each fixture:
+      config_valid.json         — identical to dummy_plugin/config.json.
+                                  Proves the loader accepts a known-good file.
+                                  Acts as the canonical reference for valid schema.
+
+      config_missing_field.json — valid in all fields except plugin.contact,
+                                  which is intentionally absent.
+                                  Proves the loader rejects any missing field.
+
+      config_wildcard_mime.json — valid in all fields except input.accepts,
+                                  which contains ["*"] — a forbidden wildcard.
+                                  Proves the MIME type allowlist is enforced.
+    """
+
+    # ------------------------------------------------------------------
+    # Helpers
+    # ------------------------------------------------------------------
+
+    def _plugin_from_fixture(self, tmp_path: Path, fixture: Path) -> Path:
+        """
+        Create a temporary plugin directory whose config.json comes from
+        the given fixture file. Adds a stub main.sh so the entrypoint check
+        does not interfere with the validation scenario under test.
+        Returns the parent plugins/ directory.
+        """
+        plugin_dir = tmp_path / "dummy_plugin"
+        plugin_dir.mkdir()
+        (plugin_dir / "config.json").write_text(
+            fixture.read_text(encoding="utf-8"),
+            encoding="utf-8",
+        )
+        (plugin_dir / "main.sh").write_text("#!/usr/bin/env bash\n")
+        return tmp_path
+
+    # ------------------------------------------------------------------
+    # config_valid.json
+    # ------------------------------------------------------------------
+
+    def test_fixture_files_exist(self):
+        """All three fixture files must be present in tests/fixtures/."""
+        assert CONFIG_VALID.is_file(),         "config_valid.json missing"
+        assert CONFIG_MISSING_FIELD.is_file(), "config_missing_field.json missing"
+        assert CONFIG_WILDCARD_MIME.is_file(),  "config_wildcard_mime.json missing"
+
+    def test_config_valid_is_accepted(self, tmp_path):
+        """config_valid.json must pass the loader without errors."""
+        plugins_dir = self._plugin_from_fixture(tmp_path, CONFIG_VALID)
+        config = PluginLoader(plugins_dir=plugins_dir).load("dummy_plugin")
+        assert isinstance(config, PluginConfig)
+
+    def test_config_valid_matches_dummy_plugin(self):
+        """
+        config_valid.json must be structurally identical to
+        dummy_plugin/config.json — it is the canonical reference.
+        """
+        valid   = json.loads(CONFIG_VALID.read_text())
+        dummy   = json.loads((DUMMY_PLUGIN / "config.json").read_text())
+        assert valid == dummy, (
+            "config_valid.json has drifted from dummy_plugin/config.json. "
+            "Keep them in sync — config_valid.json is the reference schema."
+        )
+
+    # ------------------------------------------------------------------
+    # config_missing_field.json
+    # ------------------------------------------------------------------
+
+    def test_config_missing_field_is_rejected(self, tmp_path):
+        """config_missing_field.json must be rejected — plugin.contact is absent."""
+        plugins_dir = self._plugin_from_fixture(tmp_path, CONFIG_MISSING_FIELD)
+        with pytest.raises(PluginError) as exc_info:
+            PluginLoader(plugins_dir=plugins_dir).load("dummy_plugin")
+        assert "contact" in str(exc_info.value), (
+            "Error message should mention the missing field 'contact'"
+        )
+
+    def test_config_missing_field_has_correct_absent_field(self):
+        """
+        Verify the fixture actually has 'contact' missing and nothing else
+        from the plugin section — keeps the fixture honest.
+        """
+        data = json.loads(CONFIG_MISSING_FIELD.read_text())
+        plugin_section = data.get("plugin", {})
+        assert "contact" not in plugin_section, (
+            "config_missing_field.json should NOT have 'contact' field"
+        )
+        # All other required plugin fields must be present
+        for field in ("name", "version", "description", "author", "license"):
+            assert field in plugin_section, (
+                f"config_missing_field.json unexpectedly lost field: {field}"
+            )
+
+    # ------------------------------------------------------------------
+    # config_wildcard_mime.json
+    # ------------------------------------------------------------------
+
+    def test_config_wildcard_mime_is_rejected(self, tmp_path):
+        """config_wildcard_mime.json must be rejected — input.accepts contains '*'."""
+        plugins_dir = self._plugin_from_fixture(tmp_path, CONFIG_WILDCARD_MIME)
+        with pytest.raises(PluginError) as exc_info:
+            PluginLoader(plugins_dir=plugins_dir).load("dummy_plugin")
+        error_msg = str(exc_info.value)
+        assert "*" in error_msg or "invalid" in error_msg.lower(), (
+            "Error message should mention the wildcard or invalid MIME type"
+        )
+
+    def test_config_wildcard_mime_has_wildcard(self):
+        """
+        Verify the fixture actually has '*' in input.accepts —
+        keeps the fixture honest about what it is testing.
+        """
+        data = json.loads(CONFIG_WILDCARD_MIME.read_text())
+        accepts = data.get("input", {}).get("accepts", [])
+        assert "*" in accepts, (
+            "config_wildcard_mime.json should have '*' in input.accepts"
+        )

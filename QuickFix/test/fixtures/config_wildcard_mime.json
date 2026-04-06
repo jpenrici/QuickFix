@@ -1,1 +1,43 @@
-// # TO DO
+{
+  "plugin": {
+    "name": "dummy_plugin",
+    "version": "1.0.0",
+    "description": "Minimal stub plugin for pipeline testing. Emits valid JSONL and exits 0.",
+    "author": "QuickFix Project",
+    "contact": "project@quickfix.local",
+    "license": "MIT"
+  },
+  "execution": {
+    "runtime": "bash",
+    "entrypoint": "main.sh",
+    "timeout_seconds": 10,
+    "args_extra": false
+  },
+  "sandbox": {
+    "required": false,
+    "engine": "bubblewrap",
+    "allow_network": false,
+    "allow_new_processes": false,
+    "writable_paths": ["OUTPUT_DIR"]
+  },
+  "input": {
+    "accepts": ["*"],
+    "max_size_mb": 1,
+    "encoding": "utf-8"
+  },
+  "output": {
+    "produces": "text/plain",
+    "filename_suffix": "_dummy",
+    "overwrites_input": false
+  },
+  "requirements": {
+    "system_binaries": ["bash"],
+    "min_free_disk_mb": 1,
+    "os": "linux"
+  },
+  "gui": {
+    "has_own_window": false,
+    "dialog_tool": null,
+    "extra_input_required": false
+  }
+}
