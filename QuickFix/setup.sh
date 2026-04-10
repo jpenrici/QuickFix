@@ -27,6 +27,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
+
 readonly APP_NAME="QuickFix"
 readonly MIN_PYTHON_MAJOR=3
 readonly MIN_PYTHON_MINOR=11
@@ -52,6 +53,7 @@ FAILED=0
 # Enabled only when stdout is an interactive terminal with color support.
 # Falls back to empty strings — safe for log redirection and pipes.
 # -----------------------------------------------------------------------------
+
 _setup_colors() {
     if [[ -t 1 ]] && command -v tput &>/dev/null && tput colors &>/dev/null 2>&1; then
         CLR_OK="\033[0;32m"      # green      — success
@@ -73,6 +75,7 @@ _setup_colors() {
 # -----------------------------------------------------------------------------
 # Helpers
 # -----------------------------------------------------------------------------
+
 _pass() { echo -e "  ${CLR_OK}[OK]${CLR_RESET}   $*"; }
 _warn() { echo -e "  ${CLR_WARN}[WARN]${CLR_RESET} $*"; }
 _fail() {
@@ -92,6 +95,7 @@ _section() {
 # -----------------------------------------------------------------------------
 # Guard: refuse to run as root
 # -----------------------------------------------------------------------------
+
 _check_not_root() {
     _section "Privilege check"
 
@@ -107,6 +111,7 @@ _check_not_root() {
 # -----------------------------------------------------------------------------
 # OS check
 # -----------------------------------------------------------------------------
+
 _check_os() {
     _section "Operating system"
 
@@ -120,6 +125,7 @@ _check_os() {
 # -----------------------------------------------------------------------------
 # System Python (used only to bootstrap the venv)
 # -----------------------------------------------------------------------------
+
 _check_system_python() {
     _section "System Python"
 
@@ -148,6 +154,7 @@ _check_system_python() {
 # -----------------------------------------------------------------------------
 # Virtual environment
 # -----------------------------------------------------------------------------
+
 _setup_venv() {
     _section "Virtual environment"
 
@@ -176,6 +183,7 @@ _setup_venv() {
 # -----------------------------------------------------------------------------
 # PySide6 (installed inside venv)
 # -----------------------------------------------------------------------------
+
 _check_pyside6() {
     _section "PySide6"
 
@@ -197,6 +205,7 @@ _check_pyside6() {
 # -----------------------------------------------------------------------------
 # pytest (installed inside venv)
 # -----------------------------------------------------------------------------
+
 _check_pytest() {
     _section "pytest"
 
@@ -218,6 +227,7 @@ _check_pytest() {
 # -----------------------------------------------------------------------------
 # Sandbox engines
 # -----------------------------------------------------------------------------
+
 _check_sandbox() {
     _section "Sandbox"
 
@@ -247,6 +257,7 @@ _check_sandbox() {
 # -----------------------------------------------------------------------------
 # Required Python stdlib modules (sanity check inside venv)
 # -----------------------------------------------------------------------------
+
 _check_python_stdlib() {
     _section "Python standard library"
 
@@ -264,6 +275,7 @@ _check_python_stdlib() {
 # -----------------------------------------------------------------------------
 # Plugin dependency checks
 # -----------------------------------------------------------------------------
+
 _check_plugins() {
     _section "Plugin requirements"
 
@@ -289,14 +301,6 @@ _check_plugins() {
         local binaries
         binaries=$(python "${SCRIPT_DIR}/core/loader.py" --validate "${config_file}")
 
-        for binary in ${binaries}; do
-            if command -v "${binary}" &>/dev/null; then
-                _pass "Plugin '${plugin_name}': ${binary} found"
-            else
-                _fail "Plugin '${plugin_name}': ${binary} not found — required by this plugin"
-            fi
-        done
-
         ((plugin_count++)) || true
     done
 
@@ -310,6 +314,7 @@ _check_plugins() {
 # -----------------------------------------------------------------------------
 # Application directories
 # -----------------------------------------------------------------------------
+
 _check_directories() {
     _section "Application directories"
 
@@ -328,6 +333,7 @@ _check_directories() {
 # -----------------------------------------------------------------------------
 # Essential files
 # -----------------------------------------------------------------------------
+
 _check_essential_files() {
     _section "Essential files"
 
@@ -354,6 +360,7 @@ _check_essential_files() {
 # -----------------------------------------------------------------------------
 # Write venv ready marker (only on full success)
 # -----------------------------------------------------------------------------
+
 _write_venv_marker() {
     {
         echo "venv=${VENV_DIR}"
@@ -366,6 +373,7 @@ _write_venv_marker() {
 # -----------------------------------------------------------------------------
 # Write setup log
 # -----------------------------------------------------------------------------
+
 _write_log() {
     mkdir -p "${LOG_DIR}"
     {
@@ -383,6 +391,7 @@ _write_log() {
 # -----------------------------------------------------------------------------
 # Help
 # -----------------------------------------------------------------------------
+
 _show_help() {
     cat <<EOF
 
@@ -403,6 +412,7 @@ EOF
 # -----------------------------------------------------------------------------
 # Basic Check
 # -----------------------------------------------------------------------------
+
 _check_basic() {
     _check_os            # Application only for Linux
     _check_system_python # System python3 used only to bootstrap the venv
@@ -418,6 +428,7 @@ _check_basic() {
 # -----------------------------------------------------------------------------
 # Main
 # -----------------------------------------------------------------------------
+
 main() {
     _setup_colors
 

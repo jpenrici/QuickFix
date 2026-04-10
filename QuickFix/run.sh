@@ -139,11 +139,11 @@ _launch_gui() {
 # -----------------------------------------------------------------------------
 _launch_cli() {
     _info "Launching CLI..."
-
-    # TODO: uncomment when cli/cli.py is implemented
-    # python "${CLI_DIR}/cli.py" "${@}"
-
-    _warn "CLI not yet implemented."
+    local cmd
+    cmd=("${@}")
+    cmd=("${cmd[@]:1}") # delete the --cli command
+    _info "command: ${cmd[@]}"
+    python "${CLI_DIR}/cli.py" "${cmd[@]}"
 }
 
 # -----------------------------------------------------------------------------

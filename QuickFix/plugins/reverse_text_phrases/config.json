@@ -1,1 +1,43 @@
-// # TO DO
+{
+  "plugin": {
+    "name": "reverse_text_phrases",
+    "version": "1.0.0",
+    "description": "Reverses the order of phrases in a plain text file.",
+    "author": "Plugin Author",
+    "contact": "author@example.com",
+    "license": "GPL-3.0"
+  },
+  "execution": {
+    "runtime": "lua",
+    "entrypoint": "main.lua",
+    "timeout_seconds": 30,
+    "args_extra": false
+  },
+  "sandbox": {
+    "required": true,
+    "engine": "bubblewrap",
+    "allow_network": false,
+    "allow_new_processes": false,
+    "writable_paths": ["OUTPUT_DIR"]
+  },
+  "input": {
+    "accepts": ["text/plain"],
+    "max_size_mb": 10,
+    "encoding": "utf-8"
+  },
+  "output": {
+    "produces": "text/plain",
+    "filename_suffix": "_reversed",
+    "overwrites_input": false
+  },
+  "requirements": {
+    "system_binaries": ["lua5.4"],
+    "min_free_disk_mb": 50,
+    "os": "linux"
+  },
+  "gui": {
+    "has_own_window": false,
+    "dialog_tool": null,
+    "extra_input_required": false
+  }
+}
