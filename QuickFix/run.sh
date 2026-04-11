@@ -3,10 +3,10 @@
 # QuickFix - Entry Point
 # =============================================================================
 # Usage:
-#   ./run.sh           - launches GUI (default)
-#   ./run.sh --cli     - launches CLI
-#   ./run.sh --test    - launches Tests
-#   ./run.sh --help    - shows this help
+#   ./run.sh [--gui]  - launches GUI (default)
+#   ./run.sh  --cli   - launches CLI
+#   ./run.sh  --test  - launches Tests
+#   ./run.sh  --help  - shows this help
 #
 # Environment overrides (export before calling):
 #   QUICKFIX_VENV=/custom/path   Override default venv location
@@ -127,11 +127,7 @@ _activate_venv() {
 # -----------------------------------------------------------------------------
 _launch_gui() {
     _info "Launching GUI..."
-
-    # TODO: uncomment when gui/window.py is implemented
-    # python "${GUI_DIR}/window.py"
-
-    _warn "GUI not yet implemented."
+    python "${GUI_DIR}/window.py"
 }
 
 # -----------------------------------------------------------------------------
@@ -202,10 +198,10 @@ _show_help() {
 ${APP_NAME} — File manipulation through sandboxed plugins
 
 Usage:
-  ./run.sh           Launch GUI (default)
-  ./run.sh --cli     Launch CLI
-  ./run.sh --test    Launches Tests
-  ./run.sh --help    Show this help
+  ./run.sh [--gui]  - launches GUI (default)
+  ./run.sh  --cli   - launches CLI
+  ./run.sh  --test  - launches Tests
+  ./run.sh  --help  - shows this help
 
 Environment:
   QUICKFIX_VENV      Override venv location (default: ./.venv)
@@ -229,6 +225,7 @@ main() {
 
     case "${1:-}" in
     --cli) mode="cli" ;;
+    --gui) mode="gui" ;;
     --test) mode="test" ;;
     --help)
         _show_help
