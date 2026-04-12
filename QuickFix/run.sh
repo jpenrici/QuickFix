@@ -3,10 +3,10 @@
 # QuickFix - Entry Point
 # =============================================================================
 # Usage:
-#   ./run.sh [--gui]  - launches GUI (default)
-#   ./run.sh  --cli   - launches CLI
-#   ./run.sh  --test  - launches Tests
-#   ./run.sh  --help  - shows this help
+#   ./run.sh [--gui] [--nosetup] - launches GUI (default), skip setup (optional)
+#   ./run.sh  --cli  [--nosetup] - launches CLI, skip setup (optional)
+#   ./run.sh  --test             - launches Tests
+#   ./run.sh  --help             - shows this help
 #
 # Environment overrides (export before calling):
 #   QUICKFIX_VENV=/custom/path   Override default venv location
@@ -57,6 +57,10 @@ _setup_colors() {
 # -----------------------------------------------------------------------------
 _info() { echo -e "${CLR_INFO}[${APP_NAME}]${CLR_RESET} $*"; }
 _warn() { echo -e "  ${CLR_WARN}[WARN]${CLR_RESET} $*" >&2; }
+_quit() {
+    echo -e "  ${CLR_WARN}[EXIT]${CLR_RESET} $*" >&2
+    exit 0
+}
 _error() {
     echo -e "  ${CLR_FAIL}[ERROR]${CLR_RESET} $*" >&2
     exit 1
@@ -135,9 +139,26 @@ _launch_gui() {
 # -----------------------------------------------------------------------------
 _launch_cli() {
     _info "Launching CLI..."
+
     local cmd
-    cmd=("${@}")
-    cmd=("${cmd[@]:1}") # delete the --cli command
+    while true; do
+        read -rp "Enter the option or commands: " response
+        if [[ -z "$response" ]]; then
+            read -rp "Empty response. Do you wish to exit? [Y/N]: " confirm
+            case "${confirm:-s}" in
+            [Ss]*)
+                _quit "Exiting..."
+                ;;
+            *)
+                continue
+                ;;
+            esac
+        else
+            cmd=($response)
+            break
+        fi
+    done
+
     _info "command: ${cmd[@]}"
     python "${CLI_DIR}/cli.py" "${cmd[@]}"
 }
@@ -198,10 +219,10 @@ _show_help() {
 ${APP_NAME} — File manipulation through sandboxed plugins
 
 Usage:
-  ./run.sh [--gui]  - launches GUI (default)
-  ./run.sh  --cli   - launches CLI
-  ./run.sh  --test  - launches Tests
-  ./run.sh  --help  - shows this help
+  ./run.sh [--gui] [--nosetup] - launches GUI (default), skip setup (optional)
+  ./run.sh  --cli  [--nosetup] - launches CLI, skip setup (optional)
+  ./run.sh  --test             - launches Tests
+  ./run.sh  --help             - shows this help
 
 Environment:
   QUICKFIX_VENV      Override venv location (default: ./.venv)
@@ -222,18 +243,35 @@ main() {
     _setup_colors
 
     local mode="gui"
+    local setup=true
 
-    case "${1:-}" in
-    --cli) mode="cli" ;;
-    --gui) mode="gui" ;;
-    --test) mode="test" ;;
-    --help)
-        _show_help
-        exit 0
-        ;;
-    "") mode="gui" ;;
-    *) _error "Unknown option: '${1}'. Use --help for usage." ;;
-    esac
+    while [[ $# -gt 0 ]]; do
+        case "${1:-}" in
+        --cli)
+            mode="cli"
+            shift
+            ;;
+        --gui)
+            mode="gui"
+            shift
+            ;;
+        --test)
+            mode="test"
+            shift
+            ;;
+        --nosetup)
+            setup=false
+            shift
+            ;;
+        --help)
+            _show_help
+            exit 0
+            ;;
+        *)
+            _error "Unknown option: '${1}'. Use --help for usage."
+            ;;
+        esac
+    done
 
     _info "Checking permissions..."
     _check_not_root # Aborts immediately if root — non-negotiable
@@ -247,13 +285,16 @@ main() {
         return
     fi
 
-    bash "${SETUP_SCRIPT}" --full || _error "Setup failed. Aborting."
+    if [[ "$setup" == true ]]; then
+        bash "${SETUP_SCRIPT}" --full || _error "Setup failed. Aborting."
+    fi
+
     _activate_venv
     _check_core
 
     case "${mode}" in
     gui) _launch_gui ;;
-    cli) _launch_cli "${@}" ;;
+    cli) _launch_cli ;;
     esac
 }
 
