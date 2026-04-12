@@ -28,6 +28,14 @@ import logging
 import sys
 from pathlib import Path
 
+# For cmd_menu() to work
+import shlex
+import io, contextlib
+try:
+    import readline  # noqa: F401 — importing activates readline in input()
+except ImportError:
+    pass  # readline not available on all platforms — degrades gracefully
+
 # Make core/ importable when called from project root or cli/ directory
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -376,8 +384,9 @@ quickfix> help
           --save          overwrite original with output
           --save-as PATH  save output to a new path
 
-    help  Show this message.
-    quit  Exit interactive mode.  (also: Ctrl+D)
+    help    Show this message.
+    example Execute a command.
+    quit    Exit interactive mode.  (also: Ctrl+D)
     """)
 
 
@@ -387,15 +396,12 @@ def cmd_menu() -> int:
     Each iteration is fully independent — no state between commands.
     Type 'help' for available commands, 'quit' or Ctrl+D to exit.
     """
-    import shlex
-    try:
-        import readline  # noqa: F401 — importing activates readline in input()
-    except ImportError:
-        pass  # readline not available on all platforms — degrades gracefully
 
     _info("Interactive mode  —  readline active")
     _dim("Commands: list | info | run | help | example | quit")
-    _dim("Example:  run --file report.txt --plugin reverse_text_phrases")
+    _dim("Examples:")
+    _dim("          list --file ./QuickFix/examples/example.txt")
+    _dim("          run --file ./QuickFix/examples/example.txt --plugin reverse_text_phrases")
     print()
 
     parser = _build_parser()
@@ -416,13 +422,13 @@ def cmd_menu() -> int:
             return EXIT_OK
 
         if response.lower() in ("help", "h", "?"):
-            cmd_menu_help()
+            _show_menu_help()
             print()
             continue
 
         if response.lower() in ("example", "ex", "?"):
-            # TO DO
-            continue
+            response="list --file ./QuickFix/examples/example.txt"
+            _info(f"command: {response}")
 
         # shlex.split preserves quoted paths with spaces:
         # run --file "my report.txt" → ['run', '--file', 'my report.txt']
@@ -433,10 +439,18 @@ def cmd_menu() -> int:
             print()
             continue
 
-        # argparse calls sys.exit on error — capture to keep the loop alive
+        # argparse prints to stderr and calls sys.exit on error.
+        # Suppress the stderr output and capture the exit to keep the loop alive.
+        stderr_capture = io.StringIO()
         try:
-            args = parser.parse_args(tokens)
+            with contextlib.redirect_stderr(stderr_capture):
+                args = parser.parse_args(tokens)
         except SystemExit:
+            # argparse already described the problem — show a clean version
+            error_output = stderr_capture.getvalue().strip()
+            # Extract just the last line: "error: argument command: invalid choice: ..."
+            last_line = error_output.splitlines()[-1] if error_output else "Unknown command."
+            _err(last_line.removeprefix("python cli/cli.py: ").removeprefix("quickfix: "))
             print()
             continue
 
@@ -447,7 +461,8 @@ def cmd_menu() -> int:
             continue
 
         if not args.command:
-            cmd_menu_help()
+            _warn("Unknown or invalid command!")
+            _show_menu_help()
             print()
             continue
 
