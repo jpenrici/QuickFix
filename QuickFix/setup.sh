@@ -261,7 +261,38 @@ _check_sandbox() {
 _check_python_stdlib() {
     _section "Python standard library"
 
-    local modules=("pathlib" "hashlib" "tempfile" "fcntl" "subprocess" "json" "shutil")
+    # Main modules used
+    local modules=(
+        # Data and Time
+        "datetime"
+        "hashlib"
+        "json"
+        # Execution and Concurrence
+        "subprocess"
+        "threading"
+        # Interface and CLI
+        "argparse"
+        "readline"
+        "shlex"
+        # System and Files
+        "fcntl"
+        "io"
+        "os"
+        "pathlib"
+        "shutil"
+        "stat"
+        "sys"
+        "tempfile"
+        # Typing and Structure
+        "dataclasses"
+        "enum"
+        "typing"
+        # Utilities
+        "contextlib"
+        "logging"
+        "mimetypes"
+        "re"
+    )
 
     for mod in "${modules[@]}"; do
         if python -c "import ${mod}" &>/dev/null; then

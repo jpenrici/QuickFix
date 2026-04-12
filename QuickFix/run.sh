@@ -4,7 +4,8 @@
 # =============================================================================
 # Usage:
 #   ./run.sh [--gui] [--nosetup] - launches GUI (default), skip setup (optional)
-#   ./run.sh  --cli  [--nosetup] - launches the CLI with an interactive menu., skip setup (optional)
+#   ./run.sh  --cli  [--nosetup] - launches the CLI with an interactive menu,
+#                                  skip setup (optional)
 #   ./run.sh  --test             - launches Tests, setup required
 #   ./run.sh  --help             - shows this help
 #
@@ -198,19 +199,21 @@ _show_help() {
 ${APP_NAME} — File manipulation through sandboxed plugins
 
 Usage:
-  ./run.sh [--gui] [--nosetup] - launches GUI (default), skip setup (optional)
-  ./run.sh  --cli  [--nosetup] - launches the CLI with an interactive menu, skip setup (optional)
-  ./run.sh  --test             - launches Tests, setup required
-  ./run.sh  --help             - shows this help
+ ./run.sh [--gui] [--nosetup] - launches GUI (default), skip setup (optional)
+ ./run.sh  --cli  [--nosetup] - launches the CLI with an interactive menu,
+                                skip setup (optional)
+
+ ./run.sh  --test             - launches Tests, setup required
+ ./run.sh  --help             - shows this help
 
 Environment:
-  QUICKFIX_VENV      Override venv location (default: ./.venv)
+ QUICKFIX_VENV      Override venv location (default: ./.venv)
 
 Requirements:
-  - Linux only
-  - Python ${MIN_PYTHON_VERSION}+
-  - PySide6 (installed automatically in venv)
-  - bubblewrap (recommended for sandbox isolation)
+ - Linux only
+ - Python ${MIN_PYTHON_VERSION}+
+ - PySide6 (installed automatically in venv)
+ - bubblewrap (recommended for sandbox isolation)
 
 EOF
 }
