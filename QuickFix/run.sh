@@ -4,8 +4,8 @@
 # =============================================================================
 # Usage:
 #   ./run.sh [--gui] [--nosetup] - launches GUI (default), skip setup (optional)
-#   ./run.sh  --cli  [--nosetup] - launches CLI, skip setup (optional)
-#   ./run.sh  --test             - launches Tests
+#   ./run.sh  --cli  [--nosetup] - launches the CLI with an interactive menu., skip setup (optional)
+#   ./run.sh  --test             - launches Tests, setup required
 #   ./run.sh  --help             - shows this help
 #
 # Environment overrides (export before calling):
@@ -139,28 +139,7 @@ _launch_gui() {
 # -----------------------------------------------------------------------------
 _launch_cli() {
     _info "Launching CLI..."
-
-    local cmd
-    while true; do
-        read -rp "Enter the option or commands: " response
-        if [[ -z "$response" ]]; then
-            read -rp "Empty response. Do you wish to exit? [Y/N]: " confirm
-            case "${confirm:-s}" in
-            [Ss]*)
-                _quit "Exiting..."
-                ;;
-            *)
-                continue
-                ;;
-            esac
-        else
-            cmd=($response)
-            break
-        fi
-    done
-
-    _info "command: ${cmd[@]}"
-    python "${CLI_DIR}/cli.py" "${cmd[@]}"
+    python "${CLI_DIR}/cli.py" "--menu"
 }
 
 # -----------------------------------------------------------------------------
@@ -220,8 +199,8 @@ ${APP_NAME} — File manipulation through sandboxed plugins
 
 Usage:
   ./run.sh [--gui] [--nosetup] - launches GUI (default), skip setup (optional)
-  ./run.sh  --cli  [--nosetup] - launches CLI, skip setup (optional)
-  ./run.sh  --test             - launches Tests
+  ./run.sh  --cli  [--nosetup] - launches the CLI with an interactive menu, skip setup (optional)
+  ./run.sh  --test             - launches Tests, setup required
   ./run.sh  --help             - shows this help
 
 Environment:
@@ -277,7 +256,7 @@ main() {
     _check_not_root # Aborts immediately if root — non-negotiable
 
     if [[ "${mode}" == "test" ]]; then
-        # Tests only need basic env — skip plugin checks (plugins may not be ready)
+        # Tests always need basic env — --nosetup is not allowed for --test
         _info "Checking environment..."
         bash "${SETUP_SCRIPT}" --basic || _error "Basic setup failed. Aborting."
         _activate_venv

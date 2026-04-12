@@ -6,6 +6,7 @@
 # Contains zero business logic — all orchestration lives in core/.
 #
 # Usage:
+#   python cli/cli.py --menu
 #   python cli/cli.py --help
 #   python cli/cli.py run   --file report.txt --plugin reverse_text_phrases
 #   python cli/cli.py run   --file report.txt --plugin reverse_text_phrases --save
@@ -355,6 +356,116 @@ def cmd_info(args: argparse.Namespace) -> int:
 
 
 # -----------------------------------------------------------------------------
+# Menu
+# -----------------------------------------------------------------------------
+
+def _show_menu_help():
+    print(f"""
+quickfix> help
+
+  Commands:
+
+    list  --file PATH
+          List plugins compatible with the file's MIME type.
+
+    info  --plugin NAME
+          Show plugin details (runtime, sandbox, requirements).
+
+    run   --file PATH --plugin NAME [--save] [--save-as PATH]
+          Execute a plugin. Output is kept alongside the original.
+          --save          overwrite original with output
+          --save-as PATH  save output to a new path
+
+    help  Show this message.
+    quit  Exit interactive mode.  (also: Ctrl+D)
+    """)
+
+
+def cmd_menu() -> int:
+    """
+    Interactive loop with readline support.
+    Each iteration is fully independent — no state between commands.
+    Type 'help' for available commands, 'quit' or Ctrl+D to exit.
+    """
+    import shlex
+    try:
+        import readline  # noqa: F401 — importing activates readline in input()
+    except ImportError:
+        pass  # readline not available on all platforms — degrades gracefully
+
+    _info("Interactive mode  —  readline active")
+    _dim("Commands: list | info | run | help | example | quit")
+    _dim("Example:  run --file report.txt --plugin reverse_text_phrases")
+    print()
+
+    parser = _build_parser()
+
+    while True:
+        try:
+            response = input("quickfix> ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            _info("Exiting.")
+            return EXIT_OK
+
+        if not response:
+            continue
+
+        if response.lower() in ("quit", "exit", "q"):
+            _info("Exiting.")
+            return EXIT_OK
+
+        if response.lower() in ("help", "h", "?"):
+            cmd_menu_help()
+            print()
+            continue
+
+        if response.lower() in ("example", "ex", "?"):
+            # TO DO
+            continue
+
+        # shlex.split preserves quoted paths with spaces:
+        # run --file "my report.txt" → ['run', '--file', 'my report.txt']
+        try:
+            tokens = shlex.split(response)
+        except ValueError as exc:
+            _err(f"Parse error: {exc}")
+            print()
+            continue
+
+        # argparse calls sys.exit on error — capture to keep the loop alive
+        try:
+            args = parser.parse_args(tokens)
+        except SystemExit:
+            print()
+            continue
+
+        # --menu inside --menu is a no-op
+        if getattr(args, "menu", False):
+            _warn("Already in interactive mode.")
+            print()
+            continue
+
+        if not args.command:
+            cmd_menu_help()
+            print()
+            continue
+
+        commands = {
+            "run":  cmd_run,
+            "list": cmd_list,
+            "info": cmd_info,
+        }
+        handler = commands.get(args.command)
+        if handler:
+            handler(args)
+
+        print()
+
+    return EXIT_OK  # unreachable — satisfies type checker
+
+
+# -----------------------------------------------------------------------------
 # Argument parser
 # -----------------------------------------------------------------------------
 
@@ -374,10 +485,16 @@ def _build_parser() -> argparse.ArgumentParser:
         epilog=epilog,
     )
 
+    parser.add_argument(
+        "--menu",
+        action="store_true",
+        help="Enter interactive menu mode with command history (readline)",
+    )
+
     parser.add_argument("--verbose", "-v", action="store_true", help="Enable debug logging", )
 
     sub = parser.add_subparsers(dest="command", metavar="command")
-    sub.required = True
+    sub.required = False
 
     # --- run ---
     run_p = sub.add_parser(
@@ -421,13 +538,25 @@ def _build_parser() -> argparse.ArgumentParser:
 
 def main() -> int:
     parser = _build_parser()
-    args   = parser.parse_args()
+
+    if len(sys.argv) == 1:
+        parser.print_help()
+        return EXIT_OK
+
+    args = parser.parse_args()
 
     if args.verbose:
         logging.basicConfig(
             level=logging.DEBUG,
             format="%(levelname)s %(name)s: %(message)s",
         )
+
+    if args.menu:
+        return cmd_menu()
+
+    if not args.command:
+        parser.print_help()
+        return EXIT_USER
 
     commands = {
         "run":  cmd_run,
